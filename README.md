@@ -23,7 +23,7 @@ Supported Models:
 2. Prefill Endpoint
 Path: /v1/prefill
 This endpoint is responsible for extracting specific payment information from email text and saving it to a data.csv file.
-
+```
 Request Format
 POST /v1/prefill
 Body: {
@@ -34,23 +34,26 @@ Body: {
 Response Format
 Success: {"success": true, "message": "Data extracted and written successfully."}
 Error: {"success": false, "message": "An unexpected error occurred: {error_details}"}
+```
 
 # Installation
 To set up the project locally, follow these steps:
 1. Clone the repository:
-git clone <your-repository-url>
+```git clone <your-repository-url>
 cd <your-repository-name>
+```
 2. Create a virtual environment (recommended):
-python -m venv venv
+```python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
 3. Install dependencies:
-pip install -r requirements.txt
+```pip install -r requirements.txt```
 4. Set up API Keys:
 Create a .env file in the root directory of your project and add your API keys:
-
+```
 OPENAI_API_KEY="your_openai_api_key_here"
 OPENROUTER_API_KEY="your_openrouter_api_key_here"
-
+```
 Note: The actual implementation for how get_ai_platform uses these keys would determine the exact variable names, but python-dotenv is listed in requirements.txt, suggesting this approach.
 
 # Usage
