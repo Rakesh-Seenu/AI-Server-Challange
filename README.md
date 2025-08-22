@@ -2,6 +2,9 @@
 ### Overview
 This project implements a simple AI server with two core functionalities: chat completions and email data extraction. It's built using FastAPI and designed to be compatible with OpenAI's ChatCompletion API.
 
+# Demo
+https://github.com/user-attachments/assets/710e8da6-0b45-4a09-8896-be7cc2cb1d82
+
 # Architecture diagram
 <img width="745" height="426" alt="image" src="https://github.com/user-attachments/assets/cca09a42-5375-4f4c-8486-c03a69e7560e" />
 
