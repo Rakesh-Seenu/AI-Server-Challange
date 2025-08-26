@@ -5,6 +5,8 @@ This project implements a simple AI server with two core functionalities: chat c
 # Demo
 https://github.com/user-attachments/assets/710e8da6-0b45-4a09-8896-be7cc2cb1d82
 
+# Flow Diagram
+
 ```mermaid
 sequenceDiagram
     actor Client
