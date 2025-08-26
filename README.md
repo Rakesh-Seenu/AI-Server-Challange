@@ -5,6 +5,32 @@ This project implements a simple AI server with two core functionalities: chat c
 # Demo
 https://github.com/user-attachments/assets/710e8da6-0b45-4a09-8896-be7cc2cb1d82
 
+```
+sequenceDiagram
+    actor Client
+    participant FastAPI as FastAPI App
+    participant RateLimiter as RateLimiter
+    participant AIPlatform as AI Platform (OpenAI/OpenRouter)
+    participant PrefillHandler as Prefill Handler
+    participant CSVWriter as CSV Writer
+
+    Client ->> FastAPI: POST /v1/chat/completions
+    FastAPI ->> RateLimiter: apply_rate_limit()
+    RateLimiter -->> FastAPI: Allow/Deny
+    FastAPI ->> AIPlatform: get_ai_platform(model).chat(prompt)
+    AIPlatform -->> FastAPI: AI Response
+    FastAPI -->> Client: Return Chat Response
+
+    Client ->> FastAPI: POST /v1/prefill
+    FastAPI ->> PrefillHandler: Process Email Text
+    PrefillHandler ->> AIPlatform: Extract JSON via AI
+    AIPlatform -->> PrefillHandler: JSON Extracted
+    PrefillHandler ->> CSVWriter: Write Data (amount, currency, due_date, description, company, contact)
+    CSVWriter -->> PrefillHandler: Success/Failure
+    PrefillHandler -->> FastAPI: PrefillResponse
+    FastAPI -->> Client: Success/Failure Message
+```
+
 # Architecture diagram
 <img width="745" height="426" alt="image" src="https://github.com/user-attachments/assets/cca09a42-5375-4f4c-8486-c03a69e7560e" />
 
@@ -75,12 +101,8 @@ python public_test.py
 This script will execute tests for both the chat completions and prefill endpoints and print the results to the console. It will also clean up the data.csv file after the tests complete.
 
 # Project Structure
-main.py: The main FastAPI application, containing the server endpoints.
-public_test.py: A script to test the /v1/chat/completions and /v1/prefill endpoints.
-requirements.txt: Lists all Python dependencies required for the project.
-data.csv: (Generated) Stores the extracted data from emails.
 
-
-Upload this project to a GitHub repository and share the link.
-
-Zip the solution folder (as if you would publish it to Git) and send it back.
+- main.py: The main FastAPI application, containing the server endpoints.
+- public_test.py: A script to test the /v1/chat/completions and /v1/prefill endpoints.
+- requirements.txt: Lists all Python dependencies required for the project.
+- data.csv: (Generated) Stores the extracted data from emails.
