@@ -5,7 +5,7 @@ This project implements a simple AI server with two core functionalities: chat c
 # Demo
 https://github.com/user-attachments/assets/710e8da6-0b45-4a09-8896-be7cc2cb1d82
 
-```
+```mermaid
 sequenceDiagram
     actor Client
     participant FastAPI as FastAPI App
@@ -31,6 +31,7 @@ sequenceDiagram
     FastAPI -->> Client: Success/Failure Message
 ```
 
+---
 # Architecture diagram
 <img width="745" height="426" alt="image" src="https://github.com/user-attachments/assets/cca09a42-5375-4f4c-8486-c03a69e7560e" />
 
