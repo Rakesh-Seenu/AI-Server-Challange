@@ -1,0 +1,20 @@
+From: billing@techcorp.com
+Subject: Invoice for Software Development Services
+
+Dear Client,
+
+Please find below the invoice details for our recent services:
+
+Invoice Amount: $1,500.00
+Currency: USD
+Due Date: December 15, 2025
+
+Project Description: Software Development Services - Q4 2025
+Company: TechCorp Solutions Inc.
+
+For any questions, please contact:
+John Smith
+billing@techcorp.com
+
+Best regards,
+TechCorp Billing Team

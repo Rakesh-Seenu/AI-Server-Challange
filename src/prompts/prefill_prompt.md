@@ -18,9 +18,9 @@ Your task is to parse the provided email content and identify the following deta
 - **contact**: The contact person or email for inquiries as a string. (e.g., "billing@acme.com")
 
 If a field is not explicitly found in the input text, you MUST use an empty string (`""`) for its value. Ensure all values are strings, even for amounts.
-
+<!-- 
 Example JSON format (this is the ONLY format allowed):
-```json
+```
 {
   "amount": "1500.00",
   "currency": "USD",
@@ -28,5 +28,5 @@ Example JSON format (this is the ONLY format allowed):
   "description": "Software Development Services",
   "company": "Acme Corp",
   "contact": "billing@acme.com"
-}
-```
+} -->
+``
