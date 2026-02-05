@@ -1,0 +1,159 @@
+name: Manual Code Snapshot
+
+on:
+    workflow_dispatch:
+        inputs:
+            snapshot_name:
+                description: 'Name for this snapshot (e.g., "before-major-refactor")'
+                required: true
+                type: string
+            description:
+                description: "Description of why you are creating this snapshot"
+                required: false
+                type: string
+                default: "Manual code preservation snapshot"
+
+permissions:
+    contents: write
+
+jobs:
+    create-snapshot:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0
+
+            - name: Set up Git
+              run: |
+                  git config --global user.name "github-actions[bot]"
+                  git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+            - name: Create snapshot branch
+              run: |
+                  TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+                  SNAPSHOT_BRANCH="snapshot/${{ github.event.inputs.snapshot_name }}-$TIMESTAMP"
+
+                  git checkout -b $SNAPSHOT_BRANCH
+                  git push origin $SNAPSHOT_BRANCH
+
+                  echo "SNAPSHOT_BRANCH=$SNAPSHOT_BRANCH" >> $GITHUB_ENV
+                  echo "Created snapshot branch: $SNAPSHOT_BRANCH"
+
+            - name: Create snapshot tag
+              run: |
+                  TIMESTAMP=$(date +%Y%m%d-%H%M%S)
+                  SNAPSHOT_TAG="snapshot-${{ github.event.inputs.snapshot_name }}-$TIMESTAMP"
+
+                  git tag -a $SNAPSHOT_TAG -m "${{ github.event.inputs.description }}"
+                  git push origin $SNAPSHOT_TAG
+
+                  echo "SNAPSHOT_TAG=$SNAPSHOT_TAG" >> $GITHUB_ENV
+                  echo "Created snapshot tag: $SNAPSHOT_TAG"
+
+            - name: Create snapshot archive
+              run: |
+                  mkdir -p snapshots
+                  ARCHIVE_NAME="snapshot-${{ github.event.inputs.snapshot_name }}-$(date +%Y%m%d-%H%M%S).zip"
+                  git archive --format=zip --output=snapshots/$ARCHIVE_NAME HEAD
+
+                  echo "ARCHIVE_NAME=$ARCHIVE_NAME" >> $GITHUB_ENV
+
+            - name: Create snapshot documentation
+              run: |
+                  mkdir -p .github/snapshots
+
+                  SNAPSHOT_DOC=".github/snapshots/SNAPSHOT-${{ github.event.inputs.snapshot_name }}-$(date +%Y%m%d-%H%M%S).md"
+
+                  cat > $SNAPSHOT_DOC << EOF
+                  # Code Snapshot: ${{ github.event.inputs.snapshot_name }}
+
+                  **Created:** $(date +"%Y-%m-%d %H:%M:%S")
+                  **Branch:** $SNAPSHOT_BRANCH
+                  **Tag:** $SNAPSHOT_TAG
+                  **Commit:** $(git rev-parse HEAD)
+
+                  ## Description
+                  ${{ github.event.inputs.description }}
+
+                  ## How to Restore This Snapshot
+
+                  ### Option 1: Checkout the snapshot branch
+                  \`\`\`bash
+                  git fetch origin
+                  git checkout $SNAPSHOT_BRANCH
+                  \`\`\`
+
+                  ### Option 2: Checkout the snapshot tag
+                  \`\`\`bash
+                  git fetch origin
+                  git checkout $SNAPSHOT_TAG
+                  \`\`\`
+
+                  ### Option 3: Download the archive
+                  Download the archive from the GitHub Release page and extract it.
+
+                  ## Files at Time of Snapshot
+                  \`\`\`
+                  $(git ls-tree -r --name-only HEAD)
+                  \`\`\`
+
+                  ## Recent Commits (Last 10)
+                  \`\`\`
+                  $(git log -10 --oneline)
+                  \`\`\`
+                  EOF
+
+                  cat $SNAPSHOT_DOC
+
+            - name: Create GitHub Release for Snapshot
+              uses: softprops/action-gh-release@v1
+              with:
+                  tag_name: ${{ env.SNAPSHOT_TAG }}
+                  name: "📸 Snapshot: ${{ github.event.inputs.snapshot_name }}"
+                  body: |
+                      ## Manual Code Snapshot
+
+                      **Snapshot Name:** ${{ github.event.inputs.snapshot_name }}
+                      **Created:** $(date +"%Y-%m-%d %H:%M:%S")
+                      **Description:** ${{ github.event.inputs.description }}
+
+                      ### How to Use This Snapshot
+
+                      This snapshot preserves the exact state of the code at this moment. You can restore it using:
+
+                      1. **Branch:** `${{ env.SNAPSHOT_BRANCH }}`
+                      2. **Tag:** `${{ env.SNAPSHOT_TAG }}`
+                      3. **Archive:** Download the attached zip file
+
+                      ### Restore Commands
+                      ```bash
+                      # Using branch
+                      git checkout ${{ env.SNAPSHOT_BRANCH }}
+
+                      # Using tag
+                      git checkout ${{ env.SNAPSHOT_TAG }}
+                      ```
+                  files: |
+                      snapshots/*.zip
+                  draft: false
+                  prerelease: false
+              env:
+                  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Summary
+              run: |
+                  echo "## 📸 Snapshot Created Successfully!" >> $GITHUB_STEP_SUMMARY
+                  echo "" >> $GITHUB_STEP_SUMMARY
+                  echo "**Snapshot Name:** ${{ github.event.inputs.snapshot_name }}" >> $GITHUB_STEP_SUMMARY
+                  echo "**Branch:** \`${{ env.SNAPSHOT_BRANCH }}\`" >> $GITHUB_STEP_SUMMARY
+                  echo "**Tag:** \`${{ env.SNAPSHOT_TAG }}\`" >> $GITHUB_STEP_SUMMARY
+                  echo "**Archive:** \`${{ env.ARCHIVE_NAME }}\`" >> $GITHUB_STEP_SUMMARY
+                  echo "" >> $GITHUB_STEP_SUMMARY
+                  echo "### 🔄 How to Restore" >> $GITHUB_STEP_SUMMARY
+                  echo "\`\`\`bash" >> $GITHUB_STEP_SUMMARY
+                  echo "git checkout ${{ env.SNAPSHOT_BRANCH }}" >> $GITHUB_STEP_SUMMARY
+                  echo "# or" >> $GITHUB_STEP_SUMMARY
+                  echo "git checkout ${{ env.SNAPSHOT_TAG }}" >> $GITHUB_STEP_SUMMARY
+                  echo "\`\`\`" >> $GITHUB_STEP_SUMMARY

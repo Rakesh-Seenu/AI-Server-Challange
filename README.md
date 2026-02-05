@@ -2,6 +2,20 @@
 ### Overview
 This project implements a simple AI server with two core functionalities: chat completions and email data extraction. It's built using FastAPI and designed to be compatible with OpenAI's ChatCompletion API.
 
+## 🔄 Version Control & Code Preservation
+
+This repository includes **automatic version control** that ensures you never lose old code:
+
+- ✅ **Automatic versioning** on every push to main
+- ✅ **Backup branches** created before each version
+- ✅ **GitHub Releases** with downloadable archives
+- ✅ **Changelog generation** for every version
+- ✅ **Manual snapshots** for risky changes
+
+**Current Version**: See [VERSION.md](VERSION.md)
+
+**How to recover old code**: See [Version Control Guide](.github/VERSION_CONTROL_GUIDE.md)
+
 # Demo
 https://github.com/user-attachments/assets/710e8da6-0b45-4a09-8896-be7cc2cb1d82
 

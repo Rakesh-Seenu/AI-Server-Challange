@@ -1,0 +1,201 @@
+name: Version Control & Code Preservation
+
+on:
+  push:
+    branches:
+      - main
+      - master
+  workflow_dispatch:
+    inputs:
+      version_type:
+        description: 'Version bump type'
+        required: true
+        default: 'patch'
+        type: choice
+        options:
+          - major
+          - minor
+          - patch
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  preserve-code:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Fetch all history for proper versioning
+          
+      - name: Set up Git
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+      
+      - name: Get current version
+        id: get_version
+        run: |
+          # Get the latest tag, or start at v0.0.0 if no tags exist
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          echo "current_version=$LATEST_TAG" >> $GITHUB_OUTPUT
+          echo "Current version: $LATEST_TAG"
+          
+      - name: Calculate next version
+        id: next_version
+        run: |
+          CURRENT="${{ steps.get_version.outputs.current_version }}"
+          # Remove 'v' prefix
+          CURRENT="${CURRENT#v}"
+          
+          # Split version into components
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+          
+          # Determine version bump type
+          VERSION_TYPE="${{ github.event.inputs.version_type }}"
+          if [ -z "$VERSION_TYPE" ]; then
+            VERSION_TYPE="patch"
+          fi
+          
+          # Bump version
+          case $VERSION_TYPE in
+            major)
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            minor)
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            patch)
+              PATCH=$((PATCH + 1))
+              ;;
+          esac
+          
+          NEW_VERSION="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "new_version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          echo "Next version: $NEW_VERSION"
+      
+      - name: Create backup branch
+        run: |
+          BACKUP_BRANCH="backup/${{ steps.get_version.outputs.current_version }}-$(date +%Y%m%d-%H%M%S)"
+          git checkout -b $BACKUP_BRANCH
+          git push origin $BACKUP_BRANCH
+          echo "Created backup branch: $BACKUP_BRANCH"
+          git checkout ${{ github.ref_name }}
+      
+      - name: Generate changelog
+        id: changelog
+        run: |
+          CURRENT_TAG="${{ steps.get_version.outputs.current_version }}"
+          
+          # Create changelog directory if it doesn't exist
+          mkdir -p .github/changelogs
+          
+          # Generate changelog file
+          CHANGELOG_FILE=".github/changelogs/CHANGELOG-${{ steps.next_version.outputs.new_version }}.md"
+          
+          echo "# Changelog for ${{ steps.next_version.outputs.new_version }}" > $CHANGELOG_FILE
+          echo "" >> $CHANGELOG_FILE
+          echo "**Release Date:** $(date +%Y-%m-%d)" >> $CHANGELOG_FILE
+          echo "" >> $CHANGELOG_FILE
+          echo "## Changes since $CURRENT_TAG" >> $CHANGELOG_FILE
+          echo "" >> $CHANGELOG_FILE
+          
+          # Get commits since last tag
+          if [ "$CURRENT_TAG" != "v0.0.0" ]; then
+            git log $CURRENT_TAG..HEAD --pretty=format:"- %s (%h)" >> $CHANGELOG_FILE
+          else
+            git log --pretty=format:"- %s (%h)" >> $CHANGELOG_FILE
+          fi
+          
+          echo "" >> $CHANGELOG_FILE
+          echo "" >> $CHANGELOG_FILE
+          echo "## Files Changed" >> $CHANGELOG_FILE
+          echo "" >> $CHANGELOG_FILE
+          
+          if [ "$CURRENT_TAG" != "v0.0.0" ]; then
+            git diff --name-status $CURRENT_TAG..HEAD | while read status file; do
+              case $status in
+                A) echo "- **Added:** $file" >> $CHANGELOG_FILE ;;
+                M) echo "- **Modified:** $file" >> $CHANGELOG_FILE ;;
+                D) echo "- **Deleted:** $file" >> $CHANGELOG_FILE ;;
+              esac
+            done
+          fi
+          
+          cat $CHANGELOG_FILE
+          echo "changelog_file=$CHANGELOG_FILE" >> $GITHUB_OUTPUT
+      
+      - name: Create version archive
+        run: |
+          # Create archives directory
+          mkdir -p archives
+          
+          # Create a zip archive of the current code
+          ARCHIVE_NAME="ai-server-${{ steps.next_version.outputs.new_version }}.zip"
+          git archive --format=zip --output=archives/$ARCHIVE_NAME HEAD
+          
+          echo "Created archive: $ARCHIVE_NAME"
+      
+      - name: Create Git tag
+        run: |
+          NEW_VERSION="${{ steps.next_version.outputs.new_version }}"
+          git tag -a $NEW_VERSION -m "Release $NEW_VERSION - $(date +%Y-%m-%d)"
+          git push origin $NEW_VERSION
+          echo "Created and pushed tag: $NEW_VERSION"
+      
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: ${{ steps.next_version.outputs.new_version }}
+          name: Release ${{ steps.next_version.outputs.new_version }}
+          body_path: ${{ steps.changelog.outputs.changelog_file }}
+          files: |
+            archives/*.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Update version tracking file
+        run: |
+          # Create a version tracking file
+          cat > VERSION.md << EOF
+          # Version History
+          
+          ## Current Version: ${{ steps.next_version.outputs.new_version }}
+          
+          ### All Versions
+          EOF
+          
+          # List all tags in reverse chronological order
+          git tag -l --sort=-version:refname | while read tag; do
+            TAG_DATE=$(git log -1 --format=%ai $tag)
+            echo "- **$tag** - Released on $TAG_DATE" >> VERSION.md
+          done
+          
+          # Commit and push version file
+          git add VERSION.md
+          git add .github/changelogs/
+          git commit -m "Update version tracking to ${{ steps.next_version.outputs.new_version }}" || echo "No changes to commit"
+          git push origin ${{ github.ref_name }} || echo "No changes to push"
+      
+      - name: Summary
+        run: |
+          echo "## 🎉 Version Control Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Previous Version:** ${{ steps.get_version.outputs.current_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **New Version:** ${{ steps.next_version.outputs.new_version }}" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Backup Branch Created:** backup/${{ steps.get_version.outputs.current_version }}-$(date +%Y%m%d-%H%M%S)" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Release Created:** Yes" >> $GITHUB_STEP_SUMMARY
+          echo "✅ **Archive Created:** Yes" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📝 Your old code is preserved in:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Git tag: \`${{ steps.get_version.outputs.current_version }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "2. Backup branch: \`backup/${{ steps.get_version.outputs.current_version }}-*\`" >> $GITHUB_STEP_SUMMARY
+          echo "3. GitHub Release with downloadable archive" >> $GITHUB_STEP_SUMMARY
+          echo "4. Full git history (accessible via \`git log\`)" >> $GITHUB_STEP_SUMMARY
